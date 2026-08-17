@@ -1,7 +1,10 @@
+import os
+
+os.environ["HADOOP_HOME"] = ""
+os.environ["hadoop.home.dir"] = ""
+
 from pyspark.sql import SparkSession
 from sedona.spark import SedonaContext
-
-
 # --------------------------------------------------
 # 1. Create Spark session
 # --------------------------------------------------
