@@ -1,56 +1,77 @@
 import os
 
-os.environ["HADOOP_HOME"] = ""
-os.environ["hadoop.home.dir"] = ""
-
-from pyspark.sql import SparkSession
 from sedona.spark import SedonaContext
+
+
 # --------------------------------------------------
-# 1. Create Spark session
+# 1. Set Windows temporary directory
 # --------------------------------------------------
 
-spark = (
-    SparkSession.builder
-    .appName("GeoPluse-Sedona-Test")
+os.environ["TEMP"] = os.path.join(
+    os.environ["USERPROFILE"],
+    "AppData",
+    "Local",
+    "Temp",
+    "GeoPluseSpark"
+)
+
+os.environ["TMP"] = os.environ["TEMP"]
+
+os.environ["SPARK_LOCAL_DIRS"] = os.environ["TEMP"]
+
+
+# --------------------------------------------------
+# 2. Create Sedona configuration
+# --------------------------------------------------
+
+config = (
+    SedonaContext.builder()
     .master("local[2]")
+    .appName("GeoPluse-Sedona-Test")
     .config(
         "spark.jars.packages",
         "org.apache.sedona:sedona-spark-4.1_2.13:1.9.0,"
         "org.datasyslab:geotools-wrapper:1.9.0-33.5"
+    )
+    .config(
+        "spark.local.dir",
+        os.environ["SPARK_LOCAL_DIRS"]
     )
     .getOrCreate()
 )
 
 
 # --------------------------------------------------
-# 2. Create Sedona context
+# 3. Create Sedona context
 # --------------------------------------------------
 
-sedona = SedonaContext.create(spark)
+sedona = SedonaContext.create(config)
 
+print()
 print("========================================")
 print("Apache Sedona started successfully!")
-print("Spark version:", spark.version)
+print("Spark version:", sedona.version)
 print("========================================")
 
 
 # --------------------------------------------------
-# 3. Create one geographic point
+# 4. Test ST_Point
 # --------------------------------------------------
 
-point_df = spark.sql("""
+point = sedona.sql("""
     SELECT ST_Point(73.8567, 18.5204) AS geometry
 """)
 
-print("\nOriginal Point:")
-point_df.show(truncate=False)
+print()
+print("Original Point:")
+point.show(truncate=False)
 
 
 # --------------------------------------------------
-# 4. Create 500-meter catchment polygon
+# 5. Test 500-meter catchment area
 # --------------------------------------------------
 
-buffer_df = spark.sql("""
+catchment = sedona.sql("""
     SELECT
         ST_Buffer(
             ST_Transform(
@@ -62,26 +83,28 @@ buffer_df = spark.sql("""
         ) AS catchment
 """)
 
-print("\n500-meter Catchment Polygon:")
-buffer_df.show(truncate=False)
+print()
+print("500-meter Catchment Polygon:")
+catchment.show(truncate=False)
 
 
 # --------------------------------------------------
-# 5. Count generated polygons
+# 6. Count polygons
 # --------------------------------------------------
 
-print(
-    "\nNumber of catchment polygons:",
-    buffer_df.count()
-)
+count = catchment.count()
+
+print()
+print("Number of catchment polygons:", count)
 
 
 # --------------------------------------------------
-# 6. Stop Spark
+# 7. Finish
 # --------------------------------------------------
 
-spark.stop()
+sedona.stop()
 
-print("\n========================================")
+print()
+print("========================================")
 print("Sedona test completed successfully!")
 print("========================================")
